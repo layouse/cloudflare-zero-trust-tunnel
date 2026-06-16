@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cloudflare Tunnel Kurulum Rehberi (Debian 12/13)</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #f5f5f7;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            color: #1d1d1f;
+            padding: 2rem 1rem;
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+
+        .card {
+            background: rgba(255, 255, 255, 0.8);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border-radius: 24px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
+            border: 0.5px solid rgba(255, 255, 255, 0.5);
+        }
+
+        h1 {
+            font-size: 2.8rem;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            margin-bottom: 0.25rem;
+            color: #f38020; /* Cloudflare turuncusu */
+        }
+
+        h1 small {
+            font-size: 1.2rem;
+            font-weight: 400;
+            color: #6e6e73;
+            display: block;
+            margin-top: 0.25rem;
+        }
+
+        h2 {
+            font-size: 1.8rem;
+            font-weight: 600;
+            margin-top: 1.5rem;
+            margin-bottom: 1rem;
+            color: #f38020;
+        }
+
+        h3 {
+            font-size: 1.3rem;
+            font-weight: 500;
+            margin: 1.5rem 0 0.75rem;
+        }
+
+        pre {
+            background: #1c1c1e;
+            color: #f5f5f7;
+            padding: 1.2rem;
+            border-radius: 16px;
+            overflow-x: auto;
+            font-family: "SF Mono", "Fira Code", monospace;
+            font-size: 0.85rem;
+            margin: 1rem 0;
+            border: 1px solid #2c2c30;
+        }
+
+        code {
+            font-family: "SF Mono", monospace;
+            background: #e9e9ef;
+            padding: 0.2rem 0.4rem;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            color: #d70032;
+        }
+
+        pre code {
+            background: transparent;
+            color: inherit;
+            padding: 0;
+        }
+
+        .lang-tab {
+            display: flex;
+            gap: 0.5rem;
+            margin: 1rem 0 1.5rem;
+        }
+
+        .lang-tab button {
+            background: transparent;
+            border: 1px solid #d2d2d7;
+            padding: 0.4rem 1.2rem;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            cursor: pointer;
+            font-weight: 500;
+            color: #1d1d1f;
+            transition: all 0.2s;
+        }
+
+        .lang-tab button.active {
+            background: #f38020;
+            border-color: #f38020;
+            color: #fff;
+        }
+
+        .lang-content {
+            display: none;
+        }
+
+        .lang-content.active {
+            display: block;
+        }
+
+        .error-box {
+            background: rgba(255, 59, 48, 0.08);
+            border-left: 4px solid #ff3b30;
+            padding: 1rem 1.2rem;
+            border-radius: 12px;
+            margin: 1rem 0;
+        }
+
+        .error-box strong {
+            color: #ff3b30;
+        }
+
+        .tip-box {
+            background: rgba(243, 128, 32, 0.1); /* turuncu ton */
+            border-left: 4px solid #f38020;
+            padding: 1rem 1.2rem;
+            border-radius: 12px;
+            margin: 1rem 0;
+        }
+
+        .badge {
+            display: inline-block;
+            background: #f38020;
+            color: #fff;
+            font-size: 0.7rem;
+            font-weight: 600;
+            padding: 0.2rem 0.6rem;
+            border-radius: 12px;
+            letter-spacing: 0.02em;
+            margin-right: 0.3rem;
+        }
+
+        footer {
+            text-align: center;
+            margin-top: 3rem;
+            padding: 1.5rem;
+            font-size: 0.9rem;
+            color: #4a4a4e;
+            border-top: 0.5px solid rgba(0,0,0,0.1);
+            background: rgba(255,255,255,0.6);
+            border-radius: 20px;
+            backdrop-filter: blur(8px);
+        }
+
+        footer .footer-note {
+            margin-top: 0.5rem;
+            font-size: 0.8rem;
+            color: #6e6e73;
+        }
+
+        @media (max-width: 700px) {
+            .card { padding: 1.2rem; }
+            h1 { font-size: 2rem; }
+            h2 { font-size: 1.4rem; }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="card" style="text-align: center;">
+        <h1>☁️ Cloudflare Tunnel <small>Debian 12 / 13 için adım adım kurulum rehberi</small></h1>
+        <p style="font-size: 1.1rem; color: #6e6e73; margin-top: 0.5rem;">
+            Apache sanal konakları ile birden çok alt alan adını tek bir tünel üzerinden güvenle yayınlayın.
+        </p>
+        <div style="margin-top: 1rem;">
+            <span class="badge">HTTPS</span>
+            <span class="badge">Zero-Trust</span>
+            <span class="badge">Cloudflare</span>
+        </div>
+    </div>
+
+    <!-- Dil seçimi -->
+    <div class="lang-tab">
+        <button class="active" data-lang="tr">🇹🇷 Türkçe</button>
+        <button data-lang="en">🇺🇸 English</button>
+    </div>
+
+    <!-- TÜRKÇE İÇERİK -->
+    <div id="lang-tr" class="lang-content active">
+        <div class="card">
+            <h2>1. Hazırlık: Apache Sanal Konaklar</h2>
+            <p>Her alt alan adı için bir web dizini ve sanal konak dosyası oluşturulur. Aşağıdaki örnekte <code>example.com</code> ana alan adınız ve <code>app1</code>, <code>app2</code>, <code>app3</code> alt alan adlarınız olsun.</p>
+            <pre><code># Web dizinlerini oluştur
+sudo mkdir -p /var/www/html/app1 /var/www/html/app2 /var/www/html/app3
+
+# Örnek index dosyaları
+echo "&lt;h1&gt;App 1&lt;/h1&gt;" | sudo tee /var/www/html/app1/index.html
+echo "&lt;h1&gt;App 2&lt;/h1&gt;" | sudo tee /var/www/html/app2/index.html
+echo "&lt;h1&gt;App 3&lt;/h1&gt;" | sudo tee /var/www/html/app3/index.html
+
+# Sanal konak dosyalarını oluştur (her biri için)
+sudo tee /etc/apache2/sites-available/app1.conf &gt; /dev/null &lt;&lt;EOF
+&lt;VirtualHost *:80&gt;
+    ServerName app1.example.com
+    DocumentRoot /var/www/html/app1
+&lt;/VirtualHost&gt;
+EOF
+
+sudo tee /etc/apache2/sites-available/app2.conf &gt; /dev/null &lt;&lt;EOF
+&lt;VirtualHost *:80&gt;
+    ServerName app2.example.com
+    DocumentRoot /var/www/html/app2
+&lt;/VirtualHost&gt;
+EOF
+
+sudo tee /etc/apache2/sites-available/app3.conf &gt; /dev/null &lt;&lt;EOF
+&lt;VirtualHost *:80&gt;
+    ServerName app3.example.com
+    DocumentRoot /var/www/html/app3
+&lt;/VirtualHost&gt;
+EOF
+
+# Konakları etkinleştir ve Apache’yi yeniden yükle
+sudo a2ensite app1 app2 app3
+sudo systemctl reload apache2</code></pre>
+            <div class="tip-box">💡 <strong>Not:</strong> Kendi alan adınız ve alt alan adlarınızla değiştirin. DNS kayıtlarınızın Cloudflare üzerinden yönetildiğinden emin olun.</div>
+        </div>
+
+        <div class="card">
+            <h2>2. Cloudflare Depo Ekleme ve cloudflared Kurulumu</h2>
+            <pre><code># GPG anahtarını indir
+sudo mkdir -p /usr/share/keyrings
+curl -L https://pkg.cloudflare.com/cloudflare-main.gpg | sudo tee /usr/share/keyrings/cloudflare-main.gpg &gt;/dev/null
+
+# Depoyu ekle
+echo "deb [signed-by=/usr/share/keyrings/cloudflare-main.gpg] https://pkg.cloudflare.com/cloudflared bookworm main" | sudo tee /etc/apt/sources.list.d/cloudflared.list
+
+# Kurulum
+sudo apt update &amp;&amp; sudo apt install -y cloudflared</code></pre>
+        </div>
+
+        <div class="card">
+            <h2>3. Tünel Oluşturma ve Yapılandırma</h2>
+            <pre><code># Cloudflare hesabına giriş yap (çıkan URL'yi tarayıcıda aç)
+cloudflared tunnel login
+
+# Tüneli oluştur (örnek ad: my-tunnel)
+cloudflared tunnel create my-tunnel</code></pre>
+            <p>Oluşturma işlemi sonunda size bir <strong>tunnel ID</strong> ve <strong>credentials.json</strong> dosyasının yolu verilecektir. Bu bilgileri <code>~/.cloudflared/config.yml</code> dosyasına aşağıdaki gibi yazın:</p>
+            <pre><code>tunnel: YOUR_TUNNEL_ID
+credentials-file: /home/username/.cloudflared/YOUR_TUNNEL_ID.json
+
+ingress:
+  - hostname: app1.example.com
+    service: http://localhost:80
+  - hostname: app2.example.com
+    service: http://localhost:80
+  - hostname: app3.example.com
+    service: http://localhost:80
+  - service: http_status:404</code></pre>
+            <div class="tip-box">🔁 <strong>Önemli:</strong> <code>YOUR_TUNNEL_ID</code> ve kullanıcı yolunu kendi değerlerinizle değiştirin. İsterseniz daha fazla alt alan ekleyebilirsiniz.</div>
+        </div>
+
+        <div class="card">
+            <h2>4. DNS Rotalarını Oluşturma</h2>
+            <p>Her alt alan adını tünel ile ilişkilendirmek için aşağıdaki komutları çalıştırın:</p>
+            <pre><code>cloudflared tunnel route dns my-tunnel app1.example.com
+cloudflared tunnel route dns my-tunnel app2.example.com
+cloudflared tunnel route dns my-tunnel app3.example.com</code></pre>
+            <div class="tip-box">✅ Bu komutlar Cloudflare DNS’e otomatik olarak CNAME kayıtları ekleyecektir.</div>
+        </div>
+
+        <div class="card">
+            <h2>5. cloudflared Servisini Kurma ve Başlatma</h2>
+            <pre><code>sudo cloudflared --config /home/username/.cloudflared/config.yml service install
+sudo systemctl start cloudflared
+sudo systemctl enable cloudflared</code></pre>
+            <p>Servisin durumunu kontrol etmek için:</p>
+            <pre><code>sudo systemctl status cloudflared</code></pre>
+        </div>
+
+        <div class="card">
+            <h2>⚠️ Karşılaşılan Yaygın Hatalar ve Çözümleri</h2>
+
+            <div class="error-box">
+                <strong>❌ Hata 1:</strong> <code>Address already in use: make_sock: could not bind to port 80</code>
+                <br><br>
+                <strong>Neden:</strong> Nginx gibi başka bir web sunucusu 80. portu kullanıyor.<br>
+                <strong>Çözüm:</strong>
+                <pre><code>sudo systemctl stop nginx
+sudo systemctl disable nginx
+sudo systemctl start apache2</code></pre>
+            </div>
+
+            <div class="error-box">
+                <strong>❌ Hata 2:</strong> <code>Code: 1003, An A, AAAA, or CNAME record with that host already exists</code>
+                <br><br>
+                <strong>Neden:</strong> Cloudflare DNS’de aynı alt alan adına ait eski bir kayıt var.<br>
+                <strong>Çözüm:</strong> Cloudflare Dashboard’dan ilgili kaydı manuel olarak silin, ardından <code>route dns</code> komutunu tekrar çalıştırın.
+            </div>
+
+            <div class="error-box">
+                <strong>❌ Hata 3:</strong> <code>cloudflared service is already installed / Conflicting configuration</code>
+                <br><br>
+                <strong>Neden:</strong> Önceki kurulumdan kalan servis veya konfigürasyon dosyaları mevcut.<br>
+                <strong>Çözüm:</strong>
+                <pre><code>sudo cloudflared service uninstall
+sudo rm -rf /etc/cloudflared
+sudo cloudflared --config /home/username/.cloudflared/config.yml service install
+sudo systemctl start cloudflared
+sudo systemctl enable cloudflared</code></pre>
+            </div>
+
+            <div class="tip-box">💡 <strong>İpucu:</strong> Tünelinizin doğru çalışıp çalışmadığını test etmek için <code>cloudflared tunnel --config ~/.cloudflared/config.yml --url localhost:80</code> komutunu kullanabilirsiniz.</div>
+        </div>
+    </div>
+
+    <!-- İNGİLİZCE İÇERİK -->
+    <div id="lang-en" class="lang-content">
+        <div class="card">
+            <h2>1. Preparation: Apache Virtual Hosts</h2>
+            <p>Create web directories and virtual host configurations for each subdomain. In this example, <code>example.com</code> is your main domain, and <code>app1</code>, <code>app2</code>, <code>app3</code> are subdomains.</p>
+            <pre><code># Create web directories
+sudo mkdir -p /var/www/html/app1 /var/www/html/app2 /var/www/html/app3
+
+# Sample index files
+echo "&lt;h1&gt;App 1&lt;/h1&gt;" | sudo tee /var/www/html/app1/index.html
+echo "&lt;h1&gt;App 2&lt;/h1&gt;" | sudo tee /var/www/html/app2/index.html
+echo "&lt;h1&gt;App 3&lt;/h1&gt;" | sudo tee /var/www/html/app3/index.html
+
+# Virtual host configurations
+sudo tee /etc/apache2/sites-available/app1.conf &gt; /dev/null &lt;&lt;EOF
+&lt;VirtualHost *:80&gt;
+    ServerName app1.example.com
+    DocumentRoot /var/www/html/app1
+&lt;/VirtualHost&gt;
+EOF
+
+sudo tee /etc/apache2/sites-available/app2.conf &gt; /dev/null &lt;&lt;EOF
+&lt;VirtualHost *:80&gt;
+    ServerName app2.example.com
+    DocumentRoot /var/www/html/app2
+&lt;/VirtualHost&gt;
+EOF
+
+sudo tee /etc/apache2/sites-available/app3.conf &gt; /dev/null &lt;&lt;EOF
+&lt;VirtualHost *:80&gt;
+    ServerName app3.example.com
+    DocumentRoot /var/www/html/app3
+&lt;/VirtualHost&gt;
+EOF
+
+# Enable sites and reload Apache
+sudo a2ensite app1 app2 app3
+sudo systemctl reload apache2</code></pre>
+            <div class="tip-box">💡 <strong>Note:</strong> Replace with your own domain and subdomains. Make sure DNS is managed by Cloudflare.</div>
+        </div>
+
+        <div class="card">
+            <h2>2. Add Cloudflare Repository & Install cloudflared</h2>
+            <pre><code># Download GPG key
+sudo mkdir -p /usr/share/keyrings
+curl -L https://pkg.cloudflare.com/cloudflare-main.gpg | sudo tee /usr/share/keyrings/cloudflare-main.gpg &gt;/dev/null
+
+# Add repository
+echo "deb [signed-by=/usr/share/keyrings/cloudflare-main.gpg] https://pkg.cloudflare.com/cloudflared bookworm main" | sudo tee /etc/apt/sources.list.d/cloudflared.list
+
+# Install
+sudo apt update &amp;&amp; sudo apt install -y cloudflared</code></pre>
+        </div>
+
+        <div class="card">
+            <h2>3. Create and Configure the Tunnel</h2>
+            <pre><code># Authenticate with Cloudflare
+cloudflared tunnel login
+
+# Create a named tunnel (e.g., my-tunnel)
+cloudflared tunnel create my-tunnel</code></pre>
+            <p>You will get a <strong>tunnel ID</strong> and a path to <strong>credentials.json</strong>. Use them in <code>~/.cloudflared/config.yml</code>:</p>
+            <pre><code>tunnel: YOUR_TUNNEL_ID
+credentials-file: /home/username/.cloudflared/YOUR_TUNNEL_ID.json
+
+ingress:
+  - hostname: app1.example.com
+    service: http://localhost:80
+  - hostname: app2.example.com
+    service: http://localhost:80
+  - hostname: app3.example.com
+    service: http://localhost:80
+  - service: http_status:404</code></pre>
+            <div class="tip-box">🔁 <strong>Important:</strong> Replace <code>YOUR_TUNNEL_ID</code> and the user path with your own values. You can add more subdomains as needed.</div>
+        </div>
+
+        <div class="card">
+            <h2>4. Create DNS Routes</h2>
+            <pre><code>cloudflared tunnel route dns my-tunnel app1.example.com
+cloudflared tunnel route dns my-tunnel app2.example.com
+cloudflared tunnel route dns my-tunnel app3.example.com</code></pre>
+            <div class="tip-box">✅ These commands automatically add CNAME records in Cloudflare DNS.</div>
+        </div>
+
+        <div class="card">
+            <h2>5. Install and Start cloudflared Service</h2>
+            <pre><code>sudo cloudflared --config /home/username/.cloudflared/config.yml service install
+sudo systemctl start cloudflared
+sudo systemctl enable cloudflared</code></pre>
+            <p>Check service status:</p>
+            <pre><code>sudo systemctl status cloudflared</code></pre>
+        </div>
+
+        <div class="card">
+            <h2>⚠️ Common Errors & Troubleshooting</h2>
+
+            <div class="error-box">
+                <strong>❌ Error 1:</strong> <code>Address already in use: make_sock: could not bind to port 80</code>
+                <br><br>
+                <strong>Cause:</strong> Another web server (e.g., Nginx) is using port 80.<br>
+                <strong>Solution:</strong>
+                <pre><code>sudo systemctl stop nginx
+sudo systemctl disable nginx
+sudo systemctl start apache2</code></pre>
+            </div>
+
+            <div class="error-box">
+                <strong>❌ Error 2:</strong> <code>Code: 1003, An A, AAAA, or CNAME record with that host already exists</code>
+                <br><br>
+                <strong>Cause:</strong> A stale DNS record exists for the same subdomain.<br>
+                <strong>Solution:</strong> Delete the old record from Cloudflare Dashboard, then rerun the <code>route dns</code> command.
+            </div>
+
+            <div class="error-box">
+                <strong>❌ Error 3:</strong> <code>cloudflared service is already installed / Conflicting configuration</code>
+                <br><br>
+                <strong>Cause:</strong> Leftover service or config files from a previous installation.<br>
+                <strong>Solution:</strong>
+                <pre><code>sudo cloudflared service uninstall
+sudo rm -rf /etc/cloudflared
+sudo cloudflared --config /home/username/.cloudflared/config.yml service install
+sudo systemctl start cloudflared
+sudo systemctl enable cloudflared</code></pre>
+            </div>
+
+            <div class="tip-box">💡 <strong>Tip:</strong> To test the tunnel without installing the service, use <code>cloudflared tunnel --config ~/.cloudflared/config.yml --url localhost:80</code>.</div>
+        </div>
+    </div>
+
+    <!-- YENİ FOOTER -->
+    <footer>
+        <p>
+            ☁️ Bu rehber, <strong>layouse</strong> tarafından özenle hazırlanmıştır.<br>
+            Tüm hakları saklıdır. Tamamen <strong>halkın yararı</strong> gözetilerek, açık kaynak ruhuyla ve Linux topluluğuna katkı amacıyla düzenlenmiştir.
+        </p>
+        <p class="footer-note">
+            Tüm alan adı ve alt alan adı örnekleri yer tutucudur, kendi alan adlarınızla değiştirin.
+        </p>
+        <p class="footer-note" style="margin-top:0.3rem;">
+            © 2026 – Herkese açık, özgürce paylaşılabilir.
+        </p>
+    </footer>
+</div>
+
+<script>
+    // Dil değiştirme
+    const buttons = document.querySelectorAll('.lang-tab button');
+    const contents = {
+        tr: document.getElementById('lang-tr'),
+        en: document.getElementById('lang-en')
+    };
+
+    buttons.forEach(btn => {
+        btn.addEventListener('click', function() {
+            const lang = this.dataset.lang;
+            buttons.forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+            Object.keys(contents).forEach(key => {
+                contents[key].classList.toggle('active', key === lang);
+            });
+        });
+    });
+</script>
+</body>
+</html>
