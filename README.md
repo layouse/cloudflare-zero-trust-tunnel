@@ -1,5 +1,9 @@
 # ☁️ Cloudflare Tunnel Kurulum Rehberi
 
+```bash
+Repo içerisindeki cloudeflare.html dosyasını indirerek daha interaktif bir şekilde bu repo hakkında detaylı bilgiye sahip olabilirsiniz.
+```
+
 ### Debian 12 / Debian 13 için adım adım rehber
 
 Bu rehberde, Cloudflare Zero Trust Tunnel kullanarak sunucunuzdaki web sitelerini veya uygulamaları **port açmadan**, **IP adresinizi gizleyerek** ve **HTTPS desteğiyle** internet üzerinden nasıl yayınlayabileceğinizi öğreneceksiniz.
